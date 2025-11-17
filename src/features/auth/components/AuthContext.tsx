@@ -1,11 +1,16 @@
 "use client";
 import React, { createContext, useContext, useState } from "react";
 import { ClientSession, ServerSession } from "../types";
-import { deleteServerSession, getServerSession } from "../lib";
+import {
+  deleteTokenCookie,
+  getServerSession,
+  loginAndSendJWT,
+} from "../server";
+import { toast } from "sonner";
 
 interface AuthContextType {
   clientSession: ClientSession;
-  login: (redirectTo?: string) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -23,19 +28,29 @@ export const AuthProvider = ({
     serverSession ?? { status: "loading", user: null }
   );
 
-  const login = (redirectTo: string = "/me") => {
-    window.location.href = `/api/auth/login?redirectTo=${redirectTo}`;
-  };
+  async function login(email: string, password: string) {
+    const success = await loginAndSendJWT(email, password);
+    if (!success) {
+      toast.error("Failed to login");
+      return;
+    }
+    await refreshUser();
+    toast.success("Logged in successfully");
+  }
 
-  const logout = async () => {
-    await deleteServerSession();
+  // async function signup(data: SignUpData) {
+
+  // }
+
+  async function logout() {
+    await deleteTokenCookie();
     setClientSession({ status: "unauthenticated", user: null });
-  };
+  }
 
-  const refreshUser = async () => {
+  async function refreshUser() {
     const newSession = await getServerSession();
     setClientSession(newSession);
-  };
+  }
 
   return (
     <AuthContext.Provider value={{ clientSession, login, logout, refreshUser }}>

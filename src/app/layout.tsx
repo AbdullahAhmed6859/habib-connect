@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { getServerSession } from "@/features/auth/lib";
+import { getServerSession } from "@/features/auth/server";
 import { AuthProvider } from "@/features/auth/components/AuthContext";
 
 export const metadata: Metadata = {
@@ -14,6 +14,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getServerSession();
+  // if (session.status === "unauthenticated") {
+
+  // }
+
   return (
     <html lang="en">
       <body>
