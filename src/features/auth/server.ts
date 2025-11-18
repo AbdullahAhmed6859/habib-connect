@@ -1,12 +1,24 @@
 "use server";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { CookiePayload, ServerSession } from "./types";
+import {
+  CookiePayload,
+  EmailRoleChoice,
+  FormattedSignUpData,
+  ServerSession,
+  SignUpFormData,
+} from "./types";
 import { getUserById } from "../users/lib";
 import { pool } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { SignJWT } from "jose";
 import { PoolClient, DatabaseError } from "pg";
+import {
+  authenticateUserQuery,
+  createUserQuery,
+  getSignUpFormOptionsQuery,
+} from "./queries";
+import { formatSignUpFormOptions } from "./lib";
 
 export async function getCookieUserId(): Promise<number | null> {
   const token = (await cookies()).get("token")?.value;
@@ -64,23 +76,14 @@ export async function loginAndSendJWT(
   return true;
 }
 
-type CreateUserData = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  role_id: number;
-  program_id: number;
-  class_of: number;
-  password: string;
-};
-
-export async function signupAndSendJWT(data: CreateUserData): Promise<void> {
+export async function signupAndSendJWT(data: SignUpFormData): Promise<void> {
+  console.log(data);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const userId = await createUser(client, data);
-    await client.query("COMMIT");
     await createAndSendJWT(userId);
+    await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
     if (error instanceof DatabaseError && error.code === "23505") {
@@ -96,21 +99,19 @@ export async function signupAndSendJWT(data: CreateUserData): Promise<void> {
 
 async function createUser(
   client: PoolClient,
-  data: CreateUserData
+  data: SignUpFormData
 ): Promise<number> {
   const passwordHash = await hashPassword(data.password);
-  const result = await client.query(
-    `INSERT INTO users (first_name, last_name, email, role_id, program_id, class_of, password_hash) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [
-      data.first_name,
-      data.last_name,
-      data.email,
-      data.role_id,
-      data.program_id,
-      data.class_of,
-      passwordHash,
-    ]
-  );
+  const result = await client.query(createUserQuery, [
+    data.first_name,
+    data.last_name,
+    data.email_prefix,
+    data.email_suffix_id,
+    data.role_id,
+    data.program_id,
+    data.class_of,
+    passwordHash,
+  ]);
   if (result.rows.length === 0) {
     throw new Error("Failed to create user");
   }
@@ -130,12 +131,7 @@ async function authenticateUser(
   email: string,
   password: string
 ): Promise<number> {
-  const result = await pool.query(
-    `SELECT u.id, u.password_hash FROM users u
-    INNER JOIN email_suffixes es ON u.email_suffix_id = es.id
-    WHERE CONCAT(u.email_prefix, '@', es.name) = $1`,
-    [email]
-  );
+  const result = await pool.query(authenticateUserQuery, [email]);
 
   if (result.rows.length === 0) {
     throw new Error("Invalid email");
@@ -175,3 +171,58 @@ async function createAndSendJWT(userId: number): Promise<void> {
     throw new Error("Failed to create and send JWT");
   }
 }
+export async function getSignUpFormOptions(): Promise<FormattedSignUpData> {
+  try {
+    const result = await pool.query(getSignUpFormOptionsQuery);
+    const formattedData = formatSignUpFormOptions(
+      result.rows as EmailRoleChoice[]
+    );
+    return formattedData;
+  } catch (error) {
+    console.error(error);
+    throw new Error("Failed to get sign up form options");
+  }
+}
+
+// const programs: Programs = {
+//   121: "CS",
+//   2313: "EE",
+//   30804: "CE",
+//   1348: "SDP",
+//   2232: "CND",
+//   3590: "CH",
+// };
+
+// const schools: Schools = {
+//   1213: {
+//     name: "DSSE",
+//     programs: [121, 2313, 30804],
+//   },
+//   211: {
+//     name: "AHSS",
+//     programs: [1348, 2232, 3590],
+//   },
+// };
+
+// const options: Options = {
+//   1: {
+//     email_suffix: "@st.habib.edu.pk",
+//     role: { id: 1, name: "student" },
+//     schools: [2, 1],
+//   },
+//   2: {
+//     email_suffix: "@sse.habib.edu.pk",
+//     role: { id: 2, name: "faculty" },
+//     schools: [1],
+//   },
+//   3: {
+//     email_suffix: "@ahss.habib.edu.pk",
+//     role: { id: 2, name: "faculty" },
+//     schools: [2],
+//   },
+//   4: {
+//     email_suffix: "@habib.edu.pk",
+//     role: { id: 3, name: "staff" },
+//     schools: [],
+//   },
+// };

@@ -1,16 +1,18 @@
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { getCookieUserId } from "@/features/auth/server";
 import { AppSidebar } from "@/features/layout/AppSidebar";
 import { DashboardHeader } from "@/features/layout/DashboardHeader";
+import { redirect } from "next/navigation";
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // const session = await getServerSession();
-  // if (session.status === "unauthenticated") {
-
-  // }
+  const userId = await getCookieUserId();
+  if (!userId) {
+    redirect("/login");
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>

@@ -52,3 +52,50 @@ export type AuthStatus = ClientSession["status"];
 export type CookiePayload = {
   userId: number;
 };
+
+export type SignUpFormData = {
+  first_name: string;
+  last_name: string;
+  email_prefix: string;
+  email_suffix_id: number;
+  role_id: number;
+  program_id: number;
+  class_of: number;
+  password: string;
+};
+
+export type EmailRoleChoice = {
+  email_suffix_id: number;
+  email_suffix: string;
+  role_id: number;
+  role_name: string;
+  school_id: number;
+  school_name: string;
+  program_id: number;
+  program_name: string;
+};
+
+export type Schools = {
+  [id: number]: {
+    name: string;
+    programs: (keyof Programs)[];
+  };
+};
+
+export type Options = {
+  [id: number]: {
+    email_suffix: string;
+    role: { id: number; name: string };
+    schools: (keyof Schools)[];
+  };
+};
+
+export type Programs = {
+  [id: number]: string;
+};
+
+export type FormattedSignUpData = {
+  options: Options;
+  schools: Schools;
+  programs: Programs;
+};

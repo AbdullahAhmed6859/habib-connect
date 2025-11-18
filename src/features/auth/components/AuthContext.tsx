@@ -1,19 +1,21 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { ClientSession, ServerSession } from "../types";
+import { ClientSession, ServerSession, SignUpFormData } from "../types";
 import {
   deleteTokenCookie,
   getServerSession,
   loginAndSendJWT,
+  signupAndSendJWT,
 } from "../server";
 import { toast } from "sonner";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface AuthContextType {
   clientSession: ClientSession;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  signup: (data: SignUpFormData) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,19 +42,24 @@ export const AuthProvider = ({
     toast.success("Logged in successfully");
   }
 
-  useEffect(() => {
-    if (clientSession.status === "unauthenticated") {
-      router.push("/login");
+  async function signup(data: SignUpFormData) {
+    console.log(data);
+    try {
+      await signupAndSendJWT(data);
+      toast.success("Signed up successfully");
+      await refreshUser();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to sign up");
+      return;
     }
-  }, [clientSession.status, router]);
-
-  // async function signup(data: SignUpData) {
-
-  // }
+  }
 
   async function logout() {
     await deleteTokenCookie();
     setClientSession({ status: "unauthenticated", user: null });
+    toast.success("Logged out successfully");
+    router.push("/login");
   }
 
   async function refreshUser() {
@@ -60,14 +67,10 @@ export const AuthProvider = ({
     setClientSession(newSession);
   }
 
-  useEffect(() => {
-    if (clientSession.status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [clientSession.status, router]);
-
   return (
-    <AuthContext.Provider value={{ clientSession, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ clientSession, login, logout, refreshUser, signup }}
+    >
       {children}
     </AuthContext.Provider>
   );

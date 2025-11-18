@@ -14,9 +14,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getServerSession();
-  // if (session.status === "unauthenticated") {
-
-  // }
 
   return (
     <html lang="en">

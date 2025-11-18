@@ -30,50 +30,46 @@ WHERE u.id = $1;
 
 export const getSignUpFormOptionsQuery = `
 SELECT
-    -- 1. Build the email suffix (e.g., @st.habib.edu.pk or @habib.edu.pk)
-    CONCAT(
-        '@',
-        CASE
-            WHEN sdm.name IS NOT NULL THEN sdm.name || '.'
-            ELSE ''
-        END,
-        d.name
-    ) AS email_suffix,
-
-    -- 2. Get Role info
+    es.id AS email_suffix_id,
+    CONCAT('@', es.name) AS email_suffix,
     r.id AS role_id,
     r.name AS role_name,
-
-    -- 3. Get School info
     sch.id AS school_id,
-    sch.name AS school_name,
-
-    -- 4. Get corresponding Program info for that school
+    sch.short AS school_name,
     p.id AS program_id,
-    p.name AS program_name,
-    p.short AS program_short
-
+    p.short AS program_name
 FROM
     email_role_choices erc
-    
--- Join all the definition tables
-LEFT JOIN
-    subdomains sdm ON erc.subdomain_id = sdm.id
 JOIN
-    domains d ON erc.domain_id = d.id
+    email_suffixes es ON erc.email_suffix_id = es.id 
 JOIN
     roles r ON erc.role_id = r.id
 LEFT JOIN
     schools sch ON erc.school_id = sch.id
-    
--- This LEFT JOIN connects the programs to the school defined in the rule
 LEFT JOIN
-    programs p ON p.school_id = erc.school_id
-
--- Order for clarity
+    programs p ON p.school_id = erc.school_id AND erc.school_id IS NOT NULL
 ORDER BY
     email_suffix,
     role_name,
-    school_name,
-    program_name;
+    school_name NULLS FIRST,
+    program_name NULLS FIRST;
 `;
+
+export const authenticateUserQuery = `
+SELECT u.id, u.password_hash FROM users u
+    INNER JOIN email_suffixes es ON u.email_suffix_id = es.id
+    WHERE CONCAT(u.email_prefix, '@', es.name) = $1
+`;
+
+export const createUserQuery = `
+INSERT INTO users (first_name, last_name, email_prefix, email_suffix_id, role_id, program_id, class_of, password_hash) VALUES
+($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
+
+// first_name: string;
+//   last_name: string;
+//   email_prefix: string;
+//   email_suffix_id: number;
+//   role_id: number;
+//   program_id: number;
+//   class_of: number;
+//   password_hash: string;

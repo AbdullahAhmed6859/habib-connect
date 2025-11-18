@@ -1,12 +1,13 @@
-import { getServerSession } from "@/features/auth/server";
+import { getCookieUserId, getServerSession } from "@/features/auth/server";
 import { redirect } from "next/navigation";
 import React from "react";
 
 async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession();
-  if (session.status === "authenticated") {
+  const userId = await getCookieUserId();
+  if (userId) {
     redirect("/");
   }
+
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative">

@@ -21,7 +21,8 @@ import Link from "next/link";
 
 const loginSchema = z.object({
   email: z
-    .email()
+    .string()
+    .email("Invalid email address")
     .refine(
       (email) =>
         email.endsWith("@st.habib.edu.pk") ||

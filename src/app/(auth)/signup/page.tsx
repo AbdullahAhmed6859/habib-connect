@@ -1,8 +1,9 @@
-import { getSignUpFormOptions } from "@/features/auth/components/signup/server";
+import { getSignUpFormOptions } from "@/features/auth/server";
+import Signup from "@/features/auth/components/Signup";
 
 async function SignUpPage() {
-  const formattedData = await getSignUpFormOptions();
-  return <div>signup page</div>;
+  const formOptions = await getSignUpFormOptions();
+  return <Signup formOptions={formOptions} />;
 }
 
 export default SignUpPage;
