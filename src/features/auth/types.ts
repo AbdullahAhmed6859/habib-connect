@@ -3,20 +3,32 @@ type BaseUser = {
   first_name: string;
   last_name: string;
   email: string;
-  major: string;
+  program: string;
   school: string;
+  acronym: string;
 };
 
-type Student = BaseUser & {
+type StudentFacultyBase = BaseUser & {
+  program: string;
+  program_short: string;
+  school: string;
+  school_short: string;
+};
+
+type Student = StudentFacultyBase & {
   role: "student";
   class_of: number;
 };
 
-type Faculty = BaseUser & {
+type Faculty = StudentFacultyBase & {
   role: "faculty";
 };
 
-export type User = Student | Faculty;
+type Staff = BaseUser & {
+  role: "staff";
+};
+
+export type User = Student | Faculty | Staff;
 
 type AuthenticatedSession = {
   status: "authenticated";
@@ -37,6 +49,6 @@ export type ServerSession = AuthenticatedSession | UnauthenticatedSession;
 export type ClientSession = ServerSession | LoadingSession;
 export type AuthStatus = ClientSession["status"];
 
-export type CookieUser = {
-  id: number;
+export type CookiePayload = {
+  userId: number;
 };

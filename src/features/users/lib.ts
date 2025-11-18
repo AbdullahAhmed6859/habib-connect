@@ -2,16 +2,32 @@
 import { pool } from "@/lib/db";
 import { User } from "../auth/types";
 
-const getUserQuery = `
-SELECT users.id AS id, first_name, last_name, email, roles.name AS role, majors.short AS major, schools.short AS school, class_of
-FROM users
-LEFT JOIN roles ON users.role_id = roles.id
-LEFT JOIN majors ON users.major_id = majors.id
-LEFT JOIN schools ON majors.school_id = schools.id
-WHERE users.id = $1;
+const getUserByIdQuery = `
+SELECT
+    u.id,
+    u.first_name,
+    u.last_name,
+    CONCAT(LEFT(u.first_name, 1), LEFT(u.last_name, 1)) AS acronym,
+    CONCAT(
+        u.email_prefix,
+        '@',
+        es.name
+    ) AS email,
+    r.name AS role,
+    sch.name AS school,
+    sch.short AS school_short,
+    p.name AS program,
+    p.short AS program_short,
+    u.class_of
+FROM users u
+LEFT JOIN email_suffixes es ON u.email_suffix_id = es.id
+LEFT JOIN roles r ON u.role_id = r.id
+LEFT JOIN programs p ON u.program_id = p.id
+LEFT JOIN schools sch ON p.school_id = sch.id
+WHERE u.id = $1;
 `;
 
 export async function getUserById(userId: number): Promise<User> {
-  const result = await pool.query(getUserQuery, [userId]);
+  const result = await pool.query(getUserByIdQuery, [userId]);
   return result.rows[0] as User;
 }

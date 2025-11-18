@@ -1,6 +1,12 @@
+import { getServerSession } from "@/features/auth/server";
+import { redirect } from "next/navigation";
 import React from "react";
 
-function AuthLayout({ children }: { children: React.ReactNode }) {
+async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const session = await getServerSession();
+  if (session.status === "authenticated") {
+    redirect("/");
+  }
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative">
@@ -19,7 +25,6 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </div>
-
       {children}
     </div>
   );

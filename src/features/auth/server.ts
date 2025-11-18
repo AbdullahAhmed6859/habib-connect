@@ -1,7 +1,7 @@
 "use server";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { CookieUser, ServerSession } from "./types";
+import { CookiePayload, ServerSession } from "./types";
 import { getUserById } from "../users/lib";
 import { pool } from "@/lib/db";
 import bcrypt from "bcrypt";
@@ -18,8 +18,8 @@ export async function getCookieUserId(): Promise<number | null> {
 
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
-    const { payload } = await jwtVerify(token, secret);
-    return payload.userId as number;
+    const result = await jwtVerify<CookiePayload>(token, secret);
+    return result.payload.userId;
   } catch (error) {
     console.error("JWT verification failed:", error);
     return null;
@@ -69,7 +69,7 @@ type CreateUserData = {
   last_name: string;
   email: string;
   role_id: number;
-  major_id: number;
+  program_id: number;
   class_of: number;
   password: string;
 };
@@ -100,13 +100,13 @@ async function createUser(
 ): Promise<number> {
   const passwordHash = await hashPassword(data.password);
   const result = await client.query(
-    `INSERT INTO users (first_name, last_name, email, role_id, major_id, class_of, password_hash) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    `INSERT INTO users (first_name, last_name, email, role_id, program_id, class_of, password_hash) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
     [
       data.first_name,
       data.last_name,
       data.email,
       data.role_id,
-      data.major_id,
+      data.program_id,
       data.class_of,
       passwordHash,
     ]
@@ -131,7 +131,9 @@ async function authenticateUser(
   password: string
 ): Promise<number> {
   const result = await pool.query(
-    `SELECT id, password_hash FROM users WHERE email = $1`,
+    `SELECT u.id, u.password_hash FROM users u
+    INNER JOIN email_suffixes es ON u.email_suffix_id = es.id
+    WHERE CONCAT(u.email_prefix, '@', es.name) = $1`,
     [email]
   );
 
@@ -153,7 +155,7 @@ async function authenticateUser(
 async function createAndSendJWT(userId: number): Promise<void> {
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
-    const payload = {
+    const payload: CookiePayload = {
       userId,
     };
     const token = await new SignJWT(payload)

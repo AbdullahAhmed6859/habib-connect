@@ -53,14 +53,13 @@ export function UserProfile() {
 
   const getDepartmentInfo = () => {
     if (user.role === "student") {
-      return `${user.school} - ${user.major}`;
+      return `${user.school_short} - ${user.program_short}`;
     } else if (user.role === "faculty") {
-      return `${user.school} - ${user.major}`;
+      return `${user.school_short} - ${user.program_short}`;
+    } else {
+      return "Staff - Habib University";
     }
-    return undefined;
   };
-
-  const departmentInfo = getDepartmentInfo();
 
   return (
     <DropdownMenu>
@@ -79,11 +78,9 @@ export function UserProfile() {
                 <RoleIcon className="h-3 w-3 mr-1" />
                 {roleInfo.label}
               </Badge>
-              {departmentInfo && (
-                <span className="text-xs text-muted-foreground">
-                  {departmentInfo}
-                </span>
-              )}
+              <span className="text-xs text-muted-foreground">
+                {getDepartmentInfo()}
+              </span>
             </div>
           </div>
         </button>
@@ -93,11 +90,9 @@ export function UserProfile() {
           <div>
             <p className="font-medium">{userName}</p>
             <p className="text-sm text-muted-foreground">{user.email}</p>
-            {departmentInfo && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {departmentInfo}
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {getDepartmentInfo()}
+            </p>
             {user.role === "student" && (
               <p className="text-xs text-muted-foreground">
                 Class of {user.class_of}

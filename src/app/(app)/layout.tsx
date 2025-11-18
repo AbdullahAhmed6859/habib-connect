@@ -17,7 +17,7 @@ export default async function RootLayout({
       <AppSidebar />
       <SidebarInset className="min-h-screen bg-gradient-subtle">
         <DashboardHeader />
-        <div className="container mx-auto px-4 py-6 space-y-6">{children}</div>
+        <div className="container mx-auto px-10 py-6 space-y-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

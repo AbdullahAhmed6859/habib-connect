@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { ClientSession, ServerSession } from "../types";
 import {
   deleteTokenCookie,
@@ -7,6 +7,7 @@ import {
   loginAndSendJWT,
 } from "../server";
 import { toast } from "sonner";
+import { redirect, useRouter } from "next/navigation";
 
 interface AuthContextType {
   clientSession: ClientSession;
@@ -24,6 +25,7 @@ export const AuthProvider = ({
   children: React.ReactNode;
   serverSession?: ServerSession;
 }) => {
+  const router = useRouter();
   const [clientSession, setClientSession] = useState<ClientSession>(
     serverSession ?? { status: "loading", user: null }
   );
@@ -38,6 +40,12 @@ export const AuthProvider = ({
     toast.success("Logged in successfully");
   }
 
+  useEffect(() => {
+    if (clientSession.status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [clientSession.status, router]);
+
   // async function signup(data: SignUpData) {
 
   // }
@@ -51,6 +59,12 @@ export const AuthProvider = ({
     const newSession = await getServerSession();
     setClientSession(newSession);
   }
+
+  useEffect(() => {
+    if (clientSession.status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [clientSession.status, router]);
 
   return (
     <AuthContext.Provider value={{ clientSession, login, logout, refreshUser }}>
