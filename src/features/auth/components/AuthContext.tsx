@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { ClientSession, ServerSession, SignUpFormData } from "../types";
 import {
   deleteTokenCookie,
@@ -33,26 +33,15 @@ export const AuthProvider = ({
   );
 
   async function login(email: string, password: string) {
-    const success = await loginAndSendJWT(email, password);
-    if (!success) {
-      toast.error("Failed to login");
-      return;
-    }
+    await loginAndSendJWT(email, password);
     await refreshUser();
     toast.success("Logged in successfully");
   }
 
   async function signup(data: SignUpFormData) {
     console.log(data);
-    try {
-      await signupAndSendJWT(data);
-      toast.success("Signed up successfully");
-      await refreshUser();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to sign up");
-      return;
-    }
+    await signupAndSendJWT(data);
+    await refreshUser();
   }
 
   async function logout() {

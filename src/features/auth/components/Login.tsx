@@ -18,10 +18,10 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z
-    .string()
     .email("Invalid email address")
     .refine(
       (email) =>
@@ -54,8 +54,12 @@ export default function Login() {
       await login(data.email, data.password);
       router.push("/");
     } catch (error) {
-      console.error(error);
-      setError("An error occurred during login. Please try again.");
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "An error occurred during login. Please try again.";
+      toast.error(errorMsg);
+      setError(errorMsg);
     }
   };
 

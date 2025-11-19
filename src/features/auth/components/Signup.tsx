@@ -26,6 +26,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { FormattedSignUpData, SignUpFormData } from "../types";
 import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
+import { checkEmailAvailability } from "../server";
 
 // Step 1 validation
 const step1Schema = z.object({
@@ -121,9 +123,30 @@ export default function Signup({ formOptions }: SignupProps) {
     }
   }, [watchedSchoolId, step2Form]);
 
-  const onStep1Submit = () => {
-    setError("");
-    setStep(2);
+  const onStep1Submit = async () => {
+    try {
+      const avaialable = await checkEmailAvailability(
+        step1Form.getValues("email_prefix"),
+        parseInt(step1Form.getValues("email_suffix_id"))
+      );
+      if (avaialable) {
+        setError("");
+        setStep(2);
+      } else {
+        const errorMsg = "Email already registered";
+        toast.error(errorMsg);
+        setError(errorMsg);
+        return;
+      }
+    } catch (error) {
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "An error occurred during signup. Please try again.";
+      toast.error(errorMsg);
+      setError(errorMsg);
+      return;
+    }
   };
 
   const onStep2Submit = async (data: Step2FormData) => {
@@ -140,14 +163,19 @@ export default function Signup({ formOptions }: SignupProps) {
         email_suffix_id: suffixId,
         role_id: option.role.id,
         program_id: data.program_id ? parseInt(data.program_id) : 0,
-        class_of: data.class_of ? parseInt(data.class_of) : 0,
+        class_of: data.class_of ? parseInt(data.class_of) : null,
         password: data.password,
       };
 
       await signup(signupData);
+      toast.success("Signed up successfully");
       router.push("/");
     } catch (error) {
-      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "An error occurred during signup. Please try again."
+      );
       setError(
         error instanceof Error
           ? error.message

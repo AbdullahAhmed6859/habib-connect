@@ -1,6 +1,7 @@
 "use server";
 import { pool } from "@/lib/db";
 import { User } from "../auth/types";
+import { DatabaseError } from "pg";
 
 const getUserByIdQuery = `
 SELECT
@@ -27,7 +28,14 @@ LEFT JOIN schools sch ON p.school_id = sch.id
 WHERE u.id = $1;
 `;
 
-export async function getUserById(userId: number): Promise<User> {
-  const result = await pool.query(getUserByIdQuery, [userId]);
-  return result.rows[0] as User;
+export async function getUserById(userId: number): Promise<User | null> {
+  try {
+    const result = await pool.query(getUserByIdQuery, [userId]);
+    return result.rows[0];
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw new Error("Error fetching user by id: ${error.message}");
+    }
+    throw new Error("Error fetching user by id: ${error.message}");
+  }
 }

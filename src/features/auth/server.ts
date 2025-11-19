@@ -14,9 +14,10 @@ import bcrypt from "bcrypt";
 import { SignJWT } from "jose";
 import { PoolClient, DatabaseError } from "pg";
 import {
-  authenticateUserQuery,
+  checkEmailAvailabilityQuery,
   createUserQuery,
   getSignUpFormOptionsQuery,
+  getUserIdAndPasswordHashByEmailQuery,
 } from "./queries";
 import { formatSignUpFormOptions } from "./lib";
 
@@ -78,31 +79,22 @@ export async function loginAndSendJWT(
 
 export async function signupAndSendJWT(data: SignUpFormData): Promise<void> {
   console.log(data);
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    const userId = await createUser(client, data);
+    const userId = await createUser(data);
     await createAndSendJWT(userId);
-    await client.query("COMMIT");
   } catch (error) {
-    await client.query("ROLLBACK");
     if (error instanceof DatabaseError && error.code === "23505") {
       throw new Error("Email already registered");
     }
     throw new Error(
       error instanceof Error ? error.message : "Failed to sign up"
     );
-  } finally {
-    client.release();
   }
 }
 
-async function createUser(
-  client: PoolClient,
-  data: SignUpFormData
-): Promise<number> {
+async function createUser(data: SignUpFormData): Promise<number> {
   const passwordHash = await hashPassword(data.password);
-  const result = await client.query(createUserQuery, [
+  const result = await pool.query(createUserQuery, [
     data.first_name,
     data.last_name,
     data.email_prefix,
@@ -131,21 +123,14 @@ async function authenticateUser(
   email: string,
   password: string
 ): Promise<number> {
-  const result = await pool.query(authenticateUserQuery, [email]);
+  const { id, password_hash } = await getUserIdAndPasswordHashByEmail(email);
 
-  if (result.rows.length === 0) {
-    throw new Error("Invalid email");
-  }
-
-  const passwordHash = result.rows[0].password_hash as string;
-  const userId = result.rows[0].id as number;
-
-  const isValid = await bcrypt.compare(password, passwordHash);
+  const isValid = await bcrypt.compare(password, password_hash);
   if (!isValid) {
     throw new Error("Invalid password");
   }
 
-  return userId;
+  return id;
 }
 
 async function createAndSendJWT(userId: number): Promise<void> {
@@ -171,6 +156,7 @@ async function createAndSendJWT(userId: number): Promise<void> {
     throw new Error("Failed to create and send JWT");
   }
 }
+
 export async function getSignUpFormOptions(): Promise<FormattedSignUpData> {
   try {
     const result = await pool.query(getSignUpFormOptionsQuery);
@@ -184,45 +170,39 @@ export async function getSignUpFormOptions(): Promise<FormattedSignUpData> {
   }
 }
 
-// const programs: Programs = {
-//   121: "CS",
-//   2313: "EE",
-//   30804: "CE",
-//   1348: "SDP",
-//   2232: "CND",
-//   3590: "CH",
-// };
+export async function checkEmailAvailability(
+  email_prefix: string,
+  email_suffix_id: number
+): Promise<boolean> {
+  try {
+    const result = await pool.query(checkEmailAvailabilityQuery, [
+      email_prefix,
+      email_suffix_id,
+    ]);
+    if (result.rows[0].count > 0) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    throw new Error("Failed to check email availability");
+  }
+}
 
-// const schools: Schools = {
-//   1213: {
-//     name: "DSSE",
-//     programs: [121, 2313, 30804],
-//   },
-//   211: {
-//     name: "AHSS",
-//     programs: [1348, 2232, 3590],
-//   },
-// };
-
-// const options: Options = {
-//   1: {
-//     email_suffix: "@st.habib.edu.pk",
-//     role: { id: 1, name: "student" },
-//     schools: [2, 1],
-//   },
-//   2: {
-//     email_suffix: "@sse.habib.edu.pk",
-//     role: { id: 2, name: "faculty" },
-//     schools: [1],
-//   },
-//   3: {
-//     email_suffix: "@ahss.habib.edu.pk",
-//     role: { id: 2, name: "faculty" },
-//     schools: [2],
-//   },
-//   4: {
-//     email_suffix: "@habib.edu.pk",
-//     role: { id: 3, name: "staff" },
-//     schools: [],
-//   },
-// };
+async function getUserIdAndPasswordHashByEmail(
+  email: string
+): Promise<{ id: number; password_hash: string }> {
+  try {
+    const result = await pool.query(getUserIdAndPasswordHashByEmailQuery, [
+      email,
+    ]);
+    if (result.rows.length === 0) {
+      throw new Error("Invalid email");
+    }
+    return result.rows[0] as { id: number; password_hash: string };
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw new Error("Failed to get user");
+    }
+    throw new Error("Invalid email");
+  }
+}

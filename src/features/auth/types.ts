@@ -60,7 +60,7 @@ export type SignUpFormData = {
   email_suffix_id: number;
   role_id: number;
   program_id: number;
-  class_of: number;
+  class_of: number | null;
   password: string;
 };
 

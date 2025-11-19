@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { getServerSession } from "@/features/auth/server";
 import { AuthProvider } from "@/features/auth/components/AuthContext";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Habib Connect",
@@ -18,6 +19,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
+        <Toaster />
         <AuthProvider serverSession={session}>{children}</AuthProvider>
       </body>
     </html>

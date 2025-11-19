@@ -67,8 +67,7 @@ export function UserProfile() {
         <button className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/80 transition-smooth">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-              {user.first_name[0]}
-              {user.last_name[0]}
+              {user.acronym}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 text-left hidden sm:block">
