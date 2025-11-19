@@ -12,7 +12,7 @@ import { getUserById } from "../users/lib";
 import { pool } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { SignJWT } from "jose";
-import { PoolClient, DatabaseError } from "pg";
+import { DatabaseError } from "pg";
 import {
   checkEmailAvailabilityQuery,
   createUserQuery,
