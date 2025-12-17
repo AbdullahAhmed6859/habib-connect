@@ -1,156 +1,148 @@
+"use client";
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Heart, 
-  MessageCircle, 
-  Share, 
-  MoreHorizontal,
-  Pin,
-  Calendar,
-  Users
-} from "lucide-react";
+import { Heart, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Post } from "@/features/posts/types";
+import { togglePostLike } from "@/features/posts/server";
+import { useState, useOptimistic, useTransition } from "react";
+import { toast } from "sonner";
 
-interface ActivityItem {
-  id: string;
-  type: "post" | "event" | "announcement";
-  author: {
-    name: string;
-    role: "student" | "faculty" | "admin";
-    avatar?: string;
-    department?: string;
-  };
-  content: string;
-  timestamp: string;
-  channel: string;
-  likes: number;
-  comments: number;
-  pinned?: boolean;
-  eventDate?: string;
-  attendees?: number;
+interface ActivityFeedProps {
+  initialPosts: Post[];
 }
-
-const mockActivities: ActivityItem[] = [
-  {
-    id: "1",
-    type: "announcement",
-    author: {
-      name: "Dr. Sarah Ahmed",
-      role: "faculty",
-      department: "Computer Science"
-    },
-    content: "Reminder: Final project submissions are due this Friday, December 15th at 11:59 PM. Please submit through the course portal.",
-    timestamp: "2 hours ago",
-    channel: "Computer Science",
-    likes: 12,
-    comments: 3,
-    pinned: true
-  },
-  {
-    id: "2",
-    type: "event",
-    author: {
-      name: "Student Council",
-      role: "admin",
-      department: "Administration"
-    },
-    content: "Join us for the Annual Cultural Festival! Experience diverse traditions, food, and performances from our international student community.",
-    timestamp: "4 hours ago",
-    channel: "Events & Activities",
-    likes: 45,
-    comments: 18,
-    eventDate: "Dec 20, 2024",
-    attendees: 156
-  },
-  {
-    id: "3",
-    type: "post",
-    author: {
-      name: "Fatima Ali",
-      role: "student",
-      department: "Business Administration"
-    },
-    content: "Looking for study group partners for Microeconomics final! Anyone interested in meeting at the library this weekend?",
-    timestamp: "6 hours ago",
-    channel: "Study Groups",
-    likes: 8,
-    comments: 12
-  },
-  {
-    id: "4",
-    type: "post",
-    author: {
-      name: "Hassan Malik",
-      role: "student",
-      department: "Engineering"
-    },
-    content: "Great guest lecture today by industry professionals! Really inspired to pursue machine learning after graduation.",
-    timestamp: "1 day ago",
-    channel: "General",
-    likes: 23,
-    comments: 7
-  }
-];
-
-const typeConfig = {
-  post: { color: "bg-blue-50 text-blue-700", label: "Post" },
-  event: { color: "bg-green-50 text-green-700", label: "Event" },
-  announcement: { color: "bg-amber-50 text-amber-700", label: "Announcement" }
-};
 
 const roleConfig = {
   student: { variant: "secondary" as const, label: "Student" },
   faculty: { variant: "default" as const, label: "Faculty" },
-  admin: { variant: "destructive" as const, label: "Admin" }
+  staff: { variant: "outline" as const, label: "Staff" },
 };
 
-export function ActivityFeed() {
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "Just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function getInitials(firstName: string, lastName: string): string {
+  return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
+}
+
+export function ActivityFeed({ initialPosts }: ActivityFeedProps) {
+  const [posts, setPosts] = useState(initialPosts);
+
+  const handleLikeToggle = async (postId: number) => {
+    // Optimistic update
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              user_has_liked: !post.user_has_liked,
+              like_count: post.user_has_liked
+                ? post.like_count - 1
+                : post.like_count + 1,
+            }
+          : post
+      )
+    );
+
+    try {
+      await togglePostLike(postId);
+    } catch (error) {
+      // Revert on error
+      setPosts((currentPosts) =>
+        currentPosts.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                user_has_liked: !post.user_has_liked,
+                like_count: post.user_has_liked
+                  ? post.like_count - 1
+                  : post.like_count + 1,
+              }
+            : post
+        )
+      );
+      toast.error(
+        error instanceof Error ? error.message : "Failed to toggle like"
+      );
+    }
+  };
+
+  if (posts.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Recent Activity</h2>
+        </div>
+        <Card className="campus-card">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            <p>No posts yet. Join some channels to see activity!</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Recent Activity</h2>
-        <Button variant="outline" size="sm">View All</Button>
+        <Button variant="outline" size="sm">
+          View All
+        </Button>
       </div>
 
       <div className="space-y-4">
-        {mockActivities.map((activity) => (
-          <Card key={activity.id} className="campus-card relative">
-            {activity.pinned && (
-              <div className="absolute top-3 right-3">
-                <Pin className="h-4 w-4 text-primary" fill="currentColor" />
-              </div>
-            )}
-            
+        {posts.map((post) => (
+          <Card key={post.id} className="campus-card">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={activity.author.avatar} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {activity.author.name.split(' ').map(n => n[0]).join('')}
+                      {getInitials(post.first_name, post.last_name)}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-sm">{activity.author.name}</p>
-                      <Badge variant={roleConfig[activity.author.role].variant} className="h-5 px-2 text-xs">
-                        {roleConfig[activity.author.role].label}
+                      <p className="font-medium text-sm">
+                        {post.first_name} {post.last_name}
+                      </p>
+                      <Badge
+                        variant={roleConfig[post.role].variant}
+                        className="h-5 px-2 text-xs"
+                      >
+                        {roleConfig[post.role].label}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        in #{activity.channel}
-                      </span>
+                      {post.program_short && (
+                        <span className="text-xs text-muted-foreground">
+                          • {post.program_short}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeConfig[activity.type].color}`}>
-                        {typeConfig[activity.type].label}
+                      <span className="text-xs text-muted-foreground">
+                        in #{post.channel_name}
                       </span>
-                      <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                      <span className="text-xs text-muted-foreground">
+                        • {formatTimeAgo(post.created_at)}
+                      </span>
                     </div>
                   </div>
                 </div>
-                
+
                 <Button variant="ghost" size="sm">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -158,35 +150,31 @@ export function ActivityFeed() {
             </CardHeader>
 
             <CardContent className="pt-0">
-              <p className="text-sm leading-relaxed mb-4">{activity.content}</p>
-
-              {activity.type === "event" && (
-                <div className="bg-secondary/50 rounded-lg p-3 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{activity.eventDate}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{activity.attendees} attending</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <h3 className="font-medium mb-2">{post.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                {post.content}
+              </p>
 
               <div className="flex items-center justify-between pt-3 border-t">
                 <div className="flex items-center gap-4">
-                  <Button variant="ghost" size="sm" className="h-8 px-2">
-                    <Heart className="h-4 w-4 mr-1" />
-                    <span className="text-xs">{activity.likes}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => handleLikeToggle(post.id)}
+                  >
+                    <Heart
+                      className={`h-4 w-4 mr-1 ${
+                        post.user_has_liked
+                          ? "fill-red-500 text-red-500"
+                          : ""
+                      }`}
+                    />
+                    <span className="text-xs">{post.like_count}</span>
                   </Button>
                   <Button variant="ghost" size="sm" className="h-8 px-2">
                     <MessageCircle className="h-4 w-4 mr-1" />
-                    <span className="text-xs">{activity.comments}</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2">
-                    <Share className="h-4 w-4" />
+                    <span className="text-xs">{post.comment_count}</span>
                   </Button>
                 </div>
               </div>

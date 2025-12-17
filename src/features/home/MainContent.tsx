@@ -1,12 +1,15 @@
 import { ActivityFeed } from "./ActivityFeed";
 import { UpcomingEvents } from "./UpcomingEvents";
+import { getUserChannelPosts } from "@/features/posts/server";
 
-function MainContent() {
+async function MainContent() {
+  const posts = await getUserChannelPosts();
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Activity Feed - Takes up 2 columns on large screens */}
       <div className="lg:col-span-2">
-        <ActivityFeed />
+        <ActivityFeed initialPosts={posts} />
       </div>
 
       {/* Sidebar - Events and other widgets */}
