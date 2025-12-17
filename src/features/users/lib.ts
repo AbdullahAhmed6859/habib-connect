@@ -1,5 +1,5 @@
 "use server";
-import { pool } from "@/lib/db";
+import { pool } from "@/db";
 import { User } from "../auth/types";
 import { DatabaseError } from "pg";
 

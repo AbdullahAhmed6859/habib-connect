@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 
 interface AuthContextType {
   clientSession: ClientSession;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email_prefix: string, email_suffix_id: number, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   signup: (data: SignUpFormData) => Promise<void>;
@@ -32,8 +32,8 @@ export const AuthProvider = ({
     serverSession ?? { status: "loading", user: null }
   );
 
-  async function login(email: string, password: string) {
-    await loginAndSendJWT(email, password);
+  async function login(email_prefix: string, email_suffix_id: number, password: string) {
+    await loginAndSendJWT(email_prefix, email_suffix_id, password);
     await refreshUser();
     toast.success("Logged in successfully");
   }

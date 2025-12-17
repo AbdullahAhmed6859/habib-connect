@@ -27,8 +27,7 @@ ORDER BY
 
 export const getUserIdAndPasswordHashByEmailQuery = `
 SELECT u.id, u.password_hash FROM users u
-    INNER JOIN email_suffixes es ON u.email_suffix_id = es.id
-    WHERE CONCAT(u.email_prefix, '@', es.name) = $1
+WHERE u.email_prefix = $1 AND u.email_suffix_id = $2
 `;
 
 export const createUserQuery = `

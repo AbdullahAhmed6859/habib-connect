@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -19,39 +26,46 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { toast } from "sonner";
+import { FormattedSignUpData } from "../types";
 
 const loginSchema = z.object({
-  email: z
-    .email("Invalid email address")
-    .refine(
-      (email) =>
-        email.endsWith("@st.habib.edu.pk") ||
-        email.endsWith("@sse.habib.edu.pk") ||
-        email.endsWith("@ahss.habib.edu.pk") ||
-        email.endsWith("@habib.edu.pk"),
-      { message: "Please use a valid Habib University email" }
-    ),
+  email_prefix: z
+    .string()
+    .min(1, "Email prefix is required")
+    .regex(/^[a-zA-Z0-9._-]+$/, "Invalid email format"),
+  email_suffix_id: z.string().min(1, "Please select an email domain"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function Login() {
+interface LoginProps {
+  formOptions: FormattedSignUpData;
+}
+
+export default function Login({ formOptions }: LoginProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [error, setError] = useState("");
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email_prefix: "",
+      email_suffix_id: "",
+      password: "",
+    },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError("");
-      await login(data.email, data.password);
+      await login(data.email_prefix, parseInt(data.email_suffix_id), data.password);
       router.push("/");
     } catch (error) {
       const errorMsg =
@@ -83,17 +97,40 @@ export default function Login() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@habib.edu.pk"
-                {...register("email")}
-                disabled={isSubmitting}
-              />
-              {errors.email && (
+              <Label htmlFor="email_prefix">University Email</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="email_prefix"
+                  type="text"
+                  placeholder="username"
+                  {...register("email_prefix")}
+                  disabled={isSubmitting}
+                  className="flex-1"
+                />
+                <Select
+                  value={watch("email_suffix_id")}
+                  onValueChange={(value) => setValue("email_suffix_id", value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(formOptions.options).map(([id, option]) => (
+                      <SelectItem key={id} value={id}>
+                        {option.email_suffix}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {errors.email_prefix && (
                 <p className="text-sm text-destructive">
-                  {errors.email.message}
+                  {errors.email_prefix.message}
+                </p>
+              )}
+              {errors.email_suffix_id && (
+                <p className="text-sm text-destructive">
+                  {errors.email_suffix_id.message}
                 </p>
               )}
             </div>

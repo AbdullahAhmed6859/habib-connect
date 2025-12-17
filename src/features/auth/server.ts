@@ -9,7 +9,7 @@ import {
   SignUpFormData,
 } from "./types";
 import { getUserById } from "../users/lib";
-import { pool } from "@/lib/db";
+import { pool } from "@/db";
 import bcrypt from "bcrypt";
 import { SignJWT } from "jose";
 import { DatabaseError } from "pg";
@@ -20,6 +20,7 @@ import {
   getUserIdAndPasswordHashByEmailQuery,
 } from "./queries";
 import { formatSignUpFormOptions } from "./lib";
+import { AppError } from "@/lib/error";
 
 export async function getCookieUserId(): Promise<number | null> {
   const token = (await cookies()).get("token")?.value;
@@ -65,10 +66,11 @@ export async function deleteTokenCookie() {
 }
 
 export async function loginAndSendJWT(
-  email: string,
+  email_prefix: string,
+  email_suffix_id: number,
   password: string
 ): Promise<boolean> {
-  const userId = await authenticateUser(email, password);
+  const userId = await authenticateUser(email_prefix, email_suffix_id, password);
 
   if (userId === null) {
     return false;
@@ -78,15 +80,17 @@ export async function loginAndSendJWT(
 }
 
 export async function signupAndSendJWT(data: SignUpFormData): Promise<void> {
-  console.log(data);
   try {
     const userId = await createUser(data);
     await createAndSendJWT(userId);
   } catch (error) {
     if (error instanceof DatabaseError && error.code === "23505") {
-      throw new Error("Email already registered");
+      throw new AppError("Email already registered");
     }
-    throw new Error(
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(
       error instanceof Error ? error.message : "Failed to sign up"
     );
   }
@@ -105,7 +109,7 @@ async function createUser(data: SignUpFormData): Promise<number> {
     passwordHash,
   ]);
   if (result.rows.length === 0) {
-    throw new Error("Failed to create user");
+    throw new AppError("Failed to create user");
   }
   return result.rows[0].id as number;
 }
@@ -120,41 +124,37 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 async function authenticateUser(
-  email: string,
+  email_prefix: string,
+  email_suffix_id: number,
   password: string
 ): Promise<number> {
-  const { id, password_hash } = await getUserIdAndPasswordHashByEmail(email);
+  const { id, password_hash } = await getUserIdAndPasswordHashByEmail(email_prefix, email_suffix_id);
 
   const isValid = await bcrypt.compare(password, password_hash);
   if (!isValid) {
-    throw new Error("Invalid password");
+    throw new AppError("Invalid password");
   }
 
   return id;
 }
 
 async function createAndSendJWT(userId: number): Promise<void> {
-  try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
-    const payload: CookiePayload = {
-      userId,
-    };
-    const token = await new SignJWT(payload)
-      .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("4y")
-      .setIssuedAt()
-      .sign(secret);
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+  const payload: CookiePayload = {
+    userId,
+  };
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("4y")
+    .setIssuedAt()
+    .sign(secret);
 
-    (await cookies()).set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 365 * 4,
-      path: "/",
-    });
-  } catch (error) {
-    console.error("JWT creation failed:", error);
-    throw new Error("Failed to create and send JWT");
-  }
+  (await cookies()).set("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365 * 4,
+    path: "/",
+  });
 }
 
 export async function getSignUpFormOptions(): Promise<FormattedSignUpData> {
@@ -166,7 +166,7 @@ export async function getSignUpFormOptions(): Promise<FormattedSignUpData> {
     return formattedData;
   } catch (error) {
     console.error(error);
-    throw new Error("Failed to get sign up form options");
+    throw new AppError("Failed to get sign up form options");
   }
 }
 
@@ -184,25 +184,30 @@ export async function checkEmailAvailability(
     }
     return true;
   } catch (error) {
-    throw new Error("Failed to check email availability");
+    throw new AppError("Failed to check email availability");
   }
 }
 
 async function getUserIdAndPasswordHashByEmail(
-  email: string
+  email_prefix: string,
+  email_suffix_id: number
 ): Promise<{ id: number; password_hash: string }> {
   try {
     const result = await pool.query(getUserIdAndPasswordHashByEmailQuery, [
-      email,
+      email_prefix,
+      email_suffix_id,
     ]);
     if (result.rows.length === 0) {
-      throw new Error("Invalid email");
+      throw new AppError("Invalid email");
     }
     return result.rows[0] as { id: number; password_hash: string };
   } catch (error) {
     if (error instanceof DatabaseError) {
-      throw new Error("Failed to get user");
+      throw new AppError("Failed to get user");
     }
-    throw new Error("Invalid email");
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Invalid email");
   }
 }
