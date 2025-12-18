@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { getChannelWithPosts } from "@/features/channels/server";
+import { getChannelWithPosts, getUserChannels } from "@/features/channels/server";
 import { PostCard } from "@/features/posts/PostCard";
+import { CreatePostDialog } from "@/features/posts/CreatePostDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Users, FileText, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -28,8 +28,12 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
   }
 
   let data;
+  let allChannels;
   try {
-    data = await getChannelWithPosts(channelId);
+    [data, allChannels] = await Promise.all([
+      getChannelWithPosts(channelId),
+      getUserChannels(),
+    ]);
   } catch {
     notFound();
   }
@@ -84,7 +88,7 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
             </div>
 
             <div className="flex gap-2">
-              <Button>New Post</Button>
+              <CreatePostDialog channels={allChannels} defaultChannelId={channelId} />
             </div>
           </div>
         </CardContent>

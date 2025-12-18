@@ -17,3 +17,26 @@ export type Post = {
   user_has_liked: boolean;
 };
 
+export type Comment = {
+  id: number;
+  post_id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+  first_name: string;
+  last_name: string;
+  role: "student" | "faculty" | "staff";
+  program_short: string | null;
+};
+
+export type CreatePostData = {
+  channel_id: number;
+  title: string;
+  content: string;
+};
+
+export type CreateCommentData = {
+  post_id: number;
+  content: string;
+};
+

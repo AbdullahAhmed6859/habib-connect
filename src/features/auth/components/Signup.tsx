@@ -268,7 +268,7 @@ export default function Signup({ formOptions }: SignupProps) {
                       step1Form.setValue("email_suffix_id", value)
                     }
                   >
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-50">
                       <SelectValue placeholder="Domain" />
                     </SelectTrigger>
                     <SelectContent>

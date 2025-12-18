@@ -28,7 +28,7 @@ function ChannelItems({ channelItems }: Props) {
             `/channels/${item.id}`
           )}`}
         >
-          <Hash className="h-4 w-4 flex-shrink-0" />
+          <Hash className="h-4 w-4 shrink-0" />
           {!collapsed && (
             <>
               <span className="flex-1 text-sm">{item.title}</span>

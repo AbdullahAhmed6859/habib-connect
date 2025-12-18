@@ -3,6 +3,9 @@ export {
   getChannelById,
   getChannelPosts,
   getChannelWithPosts,
+  getAvailableChannels,
+  joinChannel,
+  createChannel,
 } from "./server";
-export type { Channel, ChannelWithPosts } from "./types";
+export type { Channel, ChannelWithPosts, AvailableChannel, CreateChannelData } from "./types";
 

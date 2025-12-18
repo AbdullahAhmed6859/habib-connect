@@ -1,14 +1,25 @@
 import { ActivityFeed } from "./ActivityFeed";
 import { UpcomingEvents } from "./UpcomingEvents";
 import { getUserChannelPosts } from "@/features/posts/server";
+import { getUserChannels } from "@/features/channels/server";
+import { CreatePostDialog } from "@/features/posts/CreatePostDialog";
 
 async function MainContent() {
-  const posts = await getUserChannelPosts();
+  const [posts, channels] = await Promise.all([
+    getUserChannelPosts(),
+    getUserChannels(),
+  ]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Activity Feed - Takes up 2 columns on large screens */}
-      <div className="lg:col-span-2">
+      <div className="lg:col-span-2 space-y-4">
+        {/* Create Post Button */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Recent Activity</h2>
+          <CreatePostDialog channels={channels} />
+        </div>
+        
         <ActivityFeed initialPosts={posts} />
       </div>
 

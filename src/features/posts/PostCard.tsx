@@ -5,10 +5,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, MoreHorizontal } from "lucide-react";
-import { Post } from "./types";
-import { togglePostLike } from "./server";
-import { useState } from "react";
+import { Post, Comment } from "./types";
+import { togglePostLike, getPostComments } from "./server";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { CommentSection } from "./CommentSection";
 
 interface PostCardProps {
   post: Post;
@@ -42,6 +43,9 @@ export function PostCard({ post, showChannel = true }: PostCardProps) {
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [userHasLiked, setUserHasLiked] = useState(post.user_has_liked);
   const [isLiking, setIsLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const handleLikeToggle = async () => {
     if (isLiking) return;
@@ -64,6 +68,21 @@ export function PostCard({ post, showChannel = true }: PostCardProps) {
     } finally {
       setIsLiking(false);
     }
+  };
+
+  const handleToggleComments = async () => {
+    if (!showComments && comments.length === 0) {
+      setLoadingComments(true);
+      try {
+        const fetchedComments = await getPostComments(post.id);
+        setComments(fetchedComments);
+      } catch (error) {
+        toast.error("Failed to load comments");
+      } finally {
+        setLoadingComments(false);
+      }
+    }
+    setShowComments(!showComments);
   };
 
   return (
@@ -136,12 +155,25 @@ export function PostCard({ post, showChannel = true }: PostCardProps) {
               />
               <span className="text-xs">{likeCount}</span>
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2"
+              onClick={handleToggleComments}
+              disabled={loadingComments}
+            >
               <MessageCircle className="h-4 w-4 mr-1" />
               <span className="text-xs">{post.comment_count}</span>
             </Button>
           </div>
         </div>
+
+        {/* Comments Section */}
+        {showComments && (
+          <div className="mt-4 pt-4 border-t">
+            <CommentSection postId={post.id} initialComments={comments} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

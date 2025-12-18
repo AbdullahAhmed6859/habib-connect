@@ -17,3 +17,20 @@ export type ChannelWithPosts = {
   posts: Post[];
 };
 
+export type AvailableChannel = {
+  id: number;
+  name: string;
+  description: string | null;
+  member_count: number;
+  post_count: number;
+  is_member: boolean;
+  can_join: boolean;
+};
+
+export type CreateChannelData = {
+  name: string;
+  description: string;
+  allowed_roles?: number[];
+  allowed_programs?: number[];
+};
+
