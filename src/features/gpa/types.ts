@@ -32,7 +32,8 @@ export type Grade =
   | "C+"
   | "C"
   | "C-"
-  | "F";
+  | "F"
+  | "IP";
 
 export interface SemesterGPA {
   id: number;

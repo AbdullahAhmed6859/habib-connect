@@ -21,7 +21,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body>
+      <body suppressHydrationWarning>
         <Toaster />
         <AuthProvider serverSession={session}>{children}</AuthProvider>
       </body>

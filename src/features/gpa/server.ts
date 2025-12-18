@@ -13,8 +13,8 @@ import {
 } from "./types";
 
 // Helper function to get grade points for a grade
-function getGradePoints(grade: string): number {
-  const gradeMap: Record<string, number> = {
+function getGradePoints(grade: string): number | null {
+  const gradeMap: Record<string, number | null> = {
     "A+": 4.00,
     "A": 4.00,
     "A-": 3.67,
@@ -25,6 +25,7 @@ function getGradePoints(grade: string): number {
     "C": 2.00,
     "C-": 1.67,
     "F": 0.00,
+    "IP": null, // In Progress - doesn't count towards GPA
   };
   return gradeMap[grade] ?? 0;
 }
@@ -37,19 +38,31 @@ function calculateSemesterGPA(courses: Course[]): {
 } {
   let totalPoints = 0;
   let totalCredits = 0;
+  let earnedCredits = 0;
 
   courses.forEach((course) => {
     const gradePoints = getGradePoints(course.grade);
-    totalPoints += gradePoints * course.credit_hours;
-    totalCredits += course.credit_hours;
+    const creditHours = Number(course.credit_hours); // Convert to number in case it's a string
+    
+    // Only count courses with actual grades (not IP)
+    if (gradePoints !== null) {
+      totalPoints += gradePoints * creditHours;
+      earnedCredits += creditHours;
+    }
+    
+    // All courses count towards total registered credits
+    totalCredits += creditHours;
+    
+    // All courses count towards total credits
+    totalCredits += creditHours;
   });
 
-  const gpa = totalCredits > 0 ? totalPoints / totalCredits : 0;
+  const gpa = earnedCredits > 0 ? totalPoints / earnedCredits : 0;
 
   return {
     gpa: Math.round(gpa * 100) / 100, // Round to 2 decimal places
     totalCredits,
-    earnedCredits: totalCredits, // All courses count in Habib system
+    earnedCredits, // Only courses with grades
   };
 }
 
@@ -112,7 +125,11 @@ export async function getSemesterWithGPA(
       [semesterId, userId]
     );
 
-    const courses = coursesResult.rows as Course[];
+    const courses = coursesResult.rows.map(row => ({
+      ...row,
+      credit_hours: Number(row.credit_hours),
+      grade_points: row.grade_points ? Number(row.grade_points) : null
+    })) as Course[];
     const { gpa, totalCredits, earnedCredits } = calculateSemesterGPA(courses);
 
     return {
@@ -143,15 +160,25 @@ export async function getGPASummary(): Promise<GPASummary> {
       semesters.map((semester) => getSemesterWithGPA(semester.id))
     );
 
-    // Calculate CGPA across all semesters
+    // Calculate CGPA by summing all course grade points directly from database
+    // Use grade_points from database (calculated by trigger) instead of recalculating
     let totalPoints = 0;
     let totalCredits = 0;
     let earnedCredits = 0;
 
     semestersWithGPA.forEach((semester) => {
       totalCredits += semester.total_credits;
-      earnedCredits += semester.earned_credits;
-      totalPoints += semester.gpa * semester.earned_credits;
+      
+      // Sum grade points from courses using database-calculated grade_points
+      semester.courses.forEach((course) => {
+        const creditHours = Number(course.credit_hours);
+        
+        // Use grade_points from database (null for IP grades)
+        if (course.grade_points !== null) {
+          totalPoints += Number(course.grade_points) * creditHours;
+          earnedCredits += creditHours;
+        }
+      });
     });
 
     const cgpa = earnedCredits > 0 ? totalPoints / earnedCredits : 0;

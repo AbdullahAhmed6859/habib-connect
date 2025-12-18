@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { SemesterWithGPA } from "./types";
 import { AddCourseDialog } from "./AddCourseDialog";
+import { EditCourseDialog } from "./EditCourseDialog";
 import { deleteCourse, deleteSemester } from "./server";
 import { toast } from "sonner";
 
@@ -89,10 +90,10 @@ export function SemesterCard({ semester, onUpdate }: SemesterCardProps) {
           <div className="space-y-2">
             <div className="grid grid-cols-12 gap-2 text-sm font-semibold text-muted-foreground border-b pb-2">
               <div className="col-span-3">Code</div>
-              <div className="col-span-5">Course Name</div>
+              <div className="col-span-4">Course Name</div>
               <div className="col-span-1 text-center">Credits</div>
               <div className="col-span-2 text-center">Grade</div>
-              <div className="col-span-1"></div>
+              <div className="col-span-2 text-right">Actions</div>
             </div>
             {semester.courses.map((course) => (
               <div
@@ -100,7 +101,7 @@ export function SemesterCard({ semester, onUpdate }: SemesterCardProps) {
                 className="grid grid-cols-12 gap-2 text-sm items-center py-2 hover:bg-secondary/50 rounded px-2"
               >
                 <div className="col-span-3 font-medium">{course.course_code}</div>
-                <div className="col-span-5">{course.course_name}</div>
+                <div className="col-span-4">{course.course_name}</div>
                 <div className="col-span-1 text-center">
                   {course.credit_hours}
                 </div>
@@ -120,7 +121,8 @@ export function SemesterCard({ semester, onUpdate }: SemesterCardProps) {
                     {course.grade}
                   </span>
                 </div>
-                <div className="col-span-1 text-right">
+                <div className="col-span-2 flex justify-end gap-1">
+                  <EditCourseDialog course={course} onCourseUpdated={onUpdate} />
                   <Button
                     variant="ghost"
                     size="icon"

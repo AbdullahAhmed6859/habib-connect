@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS courses (
     course_code TEXT NOT NULL, -- e.g., "CS 101"
     course_name TEXT NOT NULL, -- e.g., "Intro to Computer Science"
     credit_hours DECIMAL(3,1) NOT NULL CHECK (credit_hours > 0), -- e.g., 3.0, 4.0
-    grade TEXT NOT NULL CHECK (grade IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'F')),
+    grade TEXT NOT NULL CHECK (grade IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'F', 'IP')),
     grade_points DECIMAL(3,2), -- Calculated based on grade
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -185,6 +185,7 @@ BEGIN
         WHEN 'C' THEN 2.00
         WHEN 'C-' THEN 1.67
         WHEN 'F' THEN 0.00
+        WHEN 'IP' THEN NULL -- In Progress - doesn't affect GPA
         ELSE 0.00
     END;
 END;

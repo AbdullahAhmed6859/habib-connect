@@ -19,14 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
-import { createCourse } from "./server";
+import { Pencil } from "lucide-react";
+import { updateCourse } from "./server";
 import { toast } from "sonner";
-import { CreateCourseData, Grade } from "./types";
+import { Course, Grade } from "./types";
 
-interface AddCourseDialogProps {
-  semesterId: number;
-  onCourseAdded: () => void;
+interface EditCourseDialogProps {
+  course: Course;
+  onCourseUpdated: () => void;
 }
 
 const GRADES: Grade[] = [
@@ -57,17 +57,17 @@ const GRADE_LABELS: Record<Grade, string> = {
   IP: "IP (In Progress)",
 };
 
-export function AddCourseDialog({
-  semesterId,
-  onCourseAdded,
-}: AddCourseDialogProps) {
+export function EditCourseDialog({
+  course,
+  onCourseUpdated,
+}: EditCourseDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    course_code: "",
-    course_name: "",
-    credit_hours: 3,
-    grade: "A+" as Grade,
+    course_code: course.course_code,
+    course_name: course.course_name,
+    credit_hours: Number(course.credit_hours),
+    grade: course.grade,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,27 +75,13 @@ export function AddCourseDialog({
     setLoading(true);
 
     try {
-      const courseData: CreateCourseData = {
-        semester_id: semesterId,
-        course_code: formData.course_code,
-        course_name: formData.course_name,
-        credit_hours: formData.credit_hours,
-        grade: formData.grade,
-      };
-
-      await createCourse(courseData);
-      toast.success("Course added successfully!");
+      await updateCourse(course.id, formData);
+      toast.success("Course updated successfully!");
       setOpen(false);
-      setFormData({
-        course_code: "",
-        course_name: "",
-        credit_hours: 3,
-        grade: "A+",
-      });
-      onCourseAdded();
+      onCourseUpdated();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to add course"
+        error instanceof Error ? error.message : "Failed to update course"
       );
     } finally {
       setLoading(false);
@@ -105,83 +91,88 @@ export function AddCourseDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Course
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+        >
+          <Pencil className="h-3 w-3" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
-          <DialogTitle>Add Course</DialogTitle>
+          <DialogTitle>Edit Course</DialogTitle>
           <DialogDescription>
-            Add a course to calculate your semester GPA.
+            Update the course information below.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="course_code">Course Code</Label>
             <Input
               id="course_code"
-              placeholder="e.g., CS 101"
               value={formData.course_code}
               onChange={(e) =>
                 setFormData({ ...formData, course_code: e.target.value })
               }
+              placeholder="e.g., CS 101"
               required
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="course_name">Course Name</Label>
             <Input
               id="course_name"
-              placeholder="e.g., Introduction to Computer Science"
               value={formData.course_name}
               onChange={(e) =>
                 setFormData({ ...formData, course_name: e.target.value })
               }
+              placeholder="e.g., Introduction to Computer Science"
               required
             />
           </div>
 
-          <div>
-            <Label htmlFor="credit_hours">Credit Hours</Label>
-            <Input
-              id="credit_hours"
-              type="number"
-              step="0.5"
-              min="0.5"
-              max="6"
-              value={formData.credit_hours || ''}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  credit_hours: parseFloat(e.target.value) || 0,
-                })
-              }
-              required
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="credit_hours">Credit Hours</Label>
+              <Input
+                id="credit_hours"
+                type="number"
+                step="0.5"
+                min="0.5"
+                max="6"
+                value={formData.credit_hours || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    credit_hours: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="grade">Grade</Label>
-            <Select
-              value={formData.grade}
-              onValueChange={(value: Grade) =>
-                setFormData({ ...formData, grade: value })
-              }
-            >
-              <SelectTrigger id="grade">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GRADES.map((grade) => (
-                  <SelectItem key={grade} value={grade}>
-                    {GRADE_LABELS[grade]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="grade">Grade</Label>
+              <Select
+                value={formData.grade}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, grade: value as Grade })
+                }
+              >
+                <SelectTrigger id="grade">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GRADES.map((grade) => (
+                    <SelectItem key={grade} value={grade}>
+                      {GRADE_LABELS[grade]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
@@ -189,11 +180,12 @@ export function AddCourseDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
+              disabled={loading}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Course"}
+              {loading ? "Updating..." : "Update Course"}
             </Button>
           </div>
         </form>
