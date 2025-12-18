@@ -29,7 +29,7 @@ function SideBarSettingsFooter() {
                   "/settings"
                 )}`}
               >
-                <Settings className="h-4 w-4 flex-shrink-0" />
+                <Settings className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>Settings</span>}
               </Link>
             </SidebarMenuButton>

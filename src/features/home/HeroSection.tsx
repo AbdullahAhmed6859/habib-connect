@@ -1,6 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { MessageCircle, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/components";
 
 export function HeroSection() {
@@ -40,25 +38,11 @@ export function HeroSection() {
 
   return (
     <section className="relative campus-hero rounded-xl p-8 overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center opacity-20"
-        style={{ backgroundImage: `url(/hero-dashboard.jpg)` }}
-      />
       <div className="relative z-10">
-        <h1 className="text-3xl font-bold mb-2 text-neutral-950">
+        <h1 className="text-3xl font-bold mb-2 text-white">
           {getGreeting()}
         </h1>
-        <p className="text-lg opacity-90 mb-6">{getRoleDescription()}</p>
-        <div className="flex gap-4">
-          <Button variant="outline">
-            <MessageCircle className="h-4 w-4" />
-            <span>Join Discussion</span>
-          </Button>
-          <Button variant="default">
-            <Plus className="h-4 w-4" />
-            <span>Create Post</span>
-          </Button>
-        </div>
+        <p className="text-lg text-white/90 mb-6">{getRoleDescription()}</p>
       </div>
     </section>
   );

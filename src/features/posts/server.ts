@@ -5,6 +5,7 @@ import { getCookieUserId } from "../auth/server";
 import { AppError } from "@/lib/error";
 import { Post, Comment, CreatePostData, CreateCommentData } from "./types";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "@/features/notifications/server";
 
 export async function getUserChannelPosts(): Promise<Post[]> {
   const userId = await getCookieUserId();
@@ -20,8 +21,8 @@ export async function getUserChannelPosts(): Promise<Post[]> {
       p.user_id,
       p.title,
       p.content,
-      p.created_at,
-      p.updated_at,
+      p.created_at AT TIME ZONE 'UTC' as created_at,
+      p.updated_at AT TIME ZONE 'UTC' as updated_at,
       c.name as channel_name,
       u.first_name,
       u.last_name,
@@ -88,6 +89,21 @@ export async function togglePostLike(postId: number): Promise<boolean> {
         `INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)`,
         [postId, userId]
       );
+
+      // Get post author to notify them
+      const postQuery = `SELECT user_id FROM posts WHERE id = $1`;
+      const postResult = await pool.query(postQuery, [postId]);
+      if (postResult.rows.length > 0) {
+        const postAuthorId = postResult.rows[0].user_id;
+        await createNotification(
+          postAuthorId,
+          userId,
+          'like',
+          'liked your post',
+          postId
+        );
+      }
+
       return true;
     }
   } catch (error) {
@@ -109,7 +125,7 @@ export async function getPostComments(postId: number): Promise<Comment[]> {
       c.post_id,
       c.user_id,
       c.content,
-      c.created_at,
+      c.created_at AT TIME ZONE 'UTC' as created_at,
       u.first_name,
       u.last_name,
       r.name as role,
@@ -186,6 +202,21 @@ export async function createComment(data: CreateCommentData): Promise<Comment> {
     `,
       [result.rows[0].id]
     );
+
+    // Get post author to notify them
+    const postQuery = `SELECT user_id FROM posts WHERE id = $1`;
+    const postResult = await pool.query(postQuery, [data.post_id]);
+    if (postResult.rows.length > 0) {
+      const postAuthorId = postResult.rows[0].user_id;
+      await createNotification(
+        postAuthorId,
+        userId,
+        'comment',
+        'commented on your post',
+        data.post_id,
+        result.rows[0].id
+      );
+    }
 
     revalidatePath("/");
     revalidatePath(`/channels/${data.post_id}`);

@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Plus } from "lucide-react";
 import { createPost } from "./server";
 import { toast } from "sonner";
@@ -49,6 +50,7 @@ export function CreatePostDialog({
   trigger,
 }: CreatePostDialogProps) {
   const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const router = useRouter();
   
   const {
@@ -69,6 +71,12 @@ export function CreatePostDialog({
 
   const onSubmit = async (data: PostFormData) => {
     try {
+      // TODO: Implement file upload to storage service (e.g., S3, Cloudinary)
+      // For now, we'll just show a message about files
+      if (files.length > 0) {
+        toast.info(`${files.length} file(s) attached (upload pending)`);
+      }
+
       await createPost({
         channel_id: parseInt(data.channel_id),
         title: data.title,
@@ -78,11 +86,10 @@ export function CreatePostDialog({
       toast.success("Post created successfully!");
       setOpen(false);
       reset();
+      setFiles([]);
       router.refresh();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create post"
-      );
+    } catch {
+      toast.error("Failed to create post");
     }
   };
 
@@ -160,6 +167,15 @@ export function CreatePostDialog({
             {errors.content && (
               <p className="text-sm text-destructive">{errors.content.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Attachments (Optional)</Label>
+            <FileUpload
+              onFilesChange={setFiles}
+              maxFiles={5}
+              maxSizeMB={10}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

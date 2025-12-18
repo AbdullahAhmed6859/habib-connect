@@ -118,3 +118,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+.campus-hero {
+  background: linear-gradient(135deg, #000000 0%, #434343 100%);
+  color: white;
+}

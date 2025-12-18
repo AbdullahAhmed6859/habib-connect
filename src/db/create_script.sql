@@ -71,6 +71,210 @@ CREATE TABLE channel_allowed_roles (
     PRIMARY KEY (channel_id, role_id)
 );
 
+-- Add notifications table to the database
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    actor_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('comment', 'like', 'mention', 'channel_invite')),
+    content TEXT NOT NULL,
+    related_post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+    related_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+    related_channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Create index for faster queries
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read) WHERE is_read = FALSE;
+
+
+-- Add events and event subscriptions tables
+
+CREATE TABLE IF NOT EXISTS events (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    event_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP,
+    location TEXT,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    channel_id INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+    is_all_day BOOLEAN NOT NULL DEFAULT FALSE,
+    max_attendees INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS event_subscriptions (
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subscribed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (event_id, user_id)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(event_date);
+CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
+CREATE INDEX IF NOT EXISTS idx_events_channel_id ON events(channel_id);
+CREATE INDEX IF NOT EXISTS idx_event_subscriptions_user_id ON event_subscriptions(user_id);
+
+-- GPA Calculator Schema
+
+-- Semesters table
+CREATE TABLE IF NOT EXISTS semesters (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL, -- e.g., "Fall 2024", "Spring 2025"
+    year INTEGER NOT NULL,
+    season TEXT NOT NULL CHECK (season IN ('Fall', 'Spring', 'Summer')),
+    is_current BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, year, season)
+);
+
+-- Courses table
+CREATE TABLE IF NOT EXISTS courses (
+    id SERIAL PRIMARY KEY,
+    semester_id INTEGER NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    course_code TEXT NOT NULL, -- e.g., "CS 101"
+    course_name TEXT NOT NULL, -- e.g., "Intro to Computer Science"
+    credit_hours DECIMAL(3,1) NOT NULL CHECK (credit_hours > 0), -- e.g., 3.0, 4.0
+    grade TEXT NOT NULL CHECK (grade IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'F')),
+    grade_points DECIMAL(3,2), -- Calculated based on grade
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Semester GPA summary (denormalized for performance)
+CREATE TABLE IF NOT EXISTS semester_gpa (
+    id SERIAL PRIMARY KEY,
+    semester_id INTEGER NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_credits DECIMAL(5,1) NOT NULL DEFAULT 0,
+    earned_credits DECIMAL(5,1) NOT NULL DEFAULT 0,
+    gpa DECIMAL(4,2) NOT NULL DEFAULT 0.00,
+    calculated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(semester_id, user_id)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_semesters_user_id ON semesters(user_id);
+CREATE INDEX IF NOT EXISTS idx_courses_semester_id ON courses(semester_id);
+CREATE INDEX IF NOT EXISTS idx_courses_user_id ON courses(user_id);
+CREATE INDEX IF NOT EXISTS idx_semester_gpa_user_id ON semester_gpa(user_id);
+
+-- Function to calculate grade points based on grade
+CREATE OR REPLACE FUNCTION calculate_grade_points(grade TEXT)
+RETURNS DECIMAL(3,2) AS $$
+BEGIN
+    RETURN CASE grade
+        WHEN 'A+' THEN 4.00
+        WHEN 'A' THEN 4.00
+        WHEN 'A-' THEN 3.67
+        WHEN 'B+' THEN 3.33
+        WHEN 'B' THEN 3.00
+        WHEN 'B-' THEN 2.67
+        WHEN 'C+' THEN 2.33
+        WHEN 'C' THEN 2.00
+        WHEN 'C-' THEN 1.67
+        WHEN 'F' THEN 0.00
+        ELSE 0.00
+    END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically calculate grade points when course is inserted/updated
+CREATE OR REPLACE FUNCTION update_course_grade_points()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.grade_points := calculate_grade_points(NEW.grade);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_course_grade_points
+    BEFORE INSERT OR UPDATE ON courses
+    FOR EACH ROW
+    EXECUTE FUNCTION update_course_grade_points();
+
+-- Course Swap Marketplace Schema
+
+CREATE TABLE IF NOT EXISTS swap_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    course_code TEXT NOT NULL, -- e.g., "CS 101"
+    course_name TEXT NOT NULL,
+    current_section TEXT NOT NULL, -- Section they currently have
+    desired_section TEXT NOT NULL, -- Section they want
+    instructor_current TEXT, -- Current instructor
+    instructor_desired TEXT, -- Desired instructor
+    semester TEXT NOT NULL, -- e.g., "Fall 2024"
+    notes TEXT, -- Additional information
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Table to track when two users match for a swap
+CREATE TABLE IF NOT EXISTS swap_matches (
+    id SERIAL PRIMARY KEY,
+    request_id_1 INTEGER NOT NULL REFERENCES swap_requests(id) ON DELETE CASCADE,
+    request_id_2 INTEGER NOT NULL REFERENCES swap_requests(id) ON DELETE CASCADE,
+    matched_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+    UNIQUE(request_id_1, request_id_2)
+);
+
+-- Indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_swap_requests_user_id ON swap_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_swap_requests_course_code ON swap_requests(course_code);
+CREATE INDEX IF NOT EXISTS idx_swap_requests_status ON swap_requests(status);
+CREATE INDEX IF NOT EXISTS idx_swap_matches_request_ids ON swap_matches(request_id_1, request_id_2);
+
+-- File Attachments Schema
+
+-- Post attachments
+CREATE TABLE IF NOT EXISTS post_attachments (
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_url TEXT NOT NULL, -- URL or path to the file
+    file_type TEXT NOT NULL, -- MIME type (e.g., 'image/png', 'application/pdf')
+    file_size INTEGER NOT NULL, -- Size in bytes
+    uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Event attachments
+CREATE TABLE IF NOT EXISTS event_attachments (
+    id SERIAL PRIMARY KEY,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- User settings
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+    theme TEXT NOT NULL DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
+    language TEXT NOT NULL DEFAULT 'en',
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_post_attachments_post_id ON post_attachments(post_id);
+CREATE INDEX IF NOT EXISTS idx_event_attachments_event_id ON event_attachments(event_id);
+
 
 CREATE TABLE channel_allowed_programs (
     channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,

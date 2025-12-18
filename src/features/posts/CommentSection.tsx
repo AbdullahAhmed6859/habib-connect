@@ -20,8 +20,20 @@ const roleConfig = {
   staff: { variant: "outline" as const, label: "Staff" },
 };
 
-function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
+function formatTimeAgo(dateString: string | Date): string {
+  // Handle both string and Date objects
+  let date: Date;
+  if (typeof dateString === 'string') {
+    // PostgreSQL returns timestamps without 'Z', so we append it to treat as UTC
+    const isoString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+    date = new Date(isoString);
+  } else if (dateString instanceof Date) {
+    date = dateString;
+  } else {
+    // If it's already a timestamp, convert it
+    date = new Date(dateString);
+  }
+  
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
