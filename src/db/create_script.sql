@@ -20,11 +20,14 @@ CREATE TABLE email_suffixes (
 
 
 CREATE TABLE email_role_choices (
-    email_suffix_id INTEGER REFERENCES email_suffixes(id),
-    school_id INTEGER REFERENCES schools(id),
+    id SERIAL PRIMARY KEY,
+    email_suffix_id INTEGER NOT NULL REFERENCES email_suffixes(id),
+    school_id INTEGER REFERENCES schools(id), -- nullable ✔
     role_id INTEGER NOT NULL REFERENCES roles(id),
-    PRIMARY KEY (email_suffix_id, school_id, role_id)
+
+    UNIQUE (email_suffix_id, school_id, role_id)
 );
+
 
 
 CREATE TABLE programs (
