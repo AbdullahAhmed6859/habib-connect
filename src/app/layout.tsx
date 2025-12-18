@@ -5,8 +5,11 @@ import { AuthProvider } from "@/features/auth/components/AuthContext";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "Habib Connect",
+  title: "HUx - Habib University Experience",
   description: "A platform to connect Habib University students and faculty.",
+  icons: {
+    icon: '/logo.jpg',
+  },
 };
 
 export default async function RootLayout({

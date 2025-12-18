@@ -3,12 +3,23 @@ import { UpcomingEvents } from "./UpcomingEvents";
 import { getUserChannelPosts } from "@/features/posts/server";
 import { getUserChannels } from "@/features/channels/server";
 import { CreatePostDialog } from "@/features/posts/CreatePostDialog";
+import { pool } from "@/db";
 
 async function MainContent() {
   const [posts, channels] = await Promise.all([
     getUserChannelPosts(),
     getUserChannels(),
   ]);
+
+  // Get campus stats
+  const statsQuery = await pool.query(`
+    SELECT 
+      (SELECT COUNT(DISTINCT user_id) FROM channel_members) as active_students,
+      (SELECT COUNT(*) FROM events WHERE DATE(event_date AT TIME ZONE 'UTC') = CURRENT_DATE AND is_deleted = FALSE) as todays_events,
+      (SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '24 hours' AND is_deleted = FALSE) as new_posts,
+      (SELECT COUNT(*) FROM swap_requests WHERE status = 'active') as active_swaps
+  `);
+  const stats = statsQuery.rows[0];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -27,25 +38,6 @@ async function MainContent() {
       <div className="space-y-6">
         <UpcomingEvents />
 
-        {/* Quick Actions Card */}
-        <div className="campus-card p-4">
-          <h3 className="font-semibold mb-3">Quick Actions</h3>
-          <div className="space-y-2">
-            <button className="w-full text-left p-2 rounded-lg hover:bg-secondary/80 transition-smooth text-sm">
-              📝 Post Announcement
-            </button>
-            <button className="w-full text-left p-2 rounded-lg hover:bg-secondary/80 transition-smooth text-sm">
-              📅 Schedule Event
-            </button>
-            <button className="w-full text-left p-2 rounded-lg hover:bg-secondary/80 transition-smooth text-sm">
-              🔄 Request Course Swap
-            </button>
-            <button className="w-full text-left p-2 rounded-lg hover:bg-secondary/80 transition-smooth text-sm">
-              👥 Create Study Group
-            </button>
-          </div>
-        </div>
-
         {/* Campus Stats */}
         <div className="campus-card p-4">
           <h3 className="font-semibold mb-3">Campus Pulse</h3>
@@ -54,23 +46,23 @@ async function MainContent() {
               <span className="text-sm text-muted-foreground">
                 Active Students
               </span>
-              <span className="font-medium">1,247</span>
+              <span className="font-medium">{stats.active_students || 0}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">
                 Today&apos;s Events
               </span>
-              <span className="font-medium">8</span>
+              <span className="font-medium">{stats.todays_events || 0}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">New Posts</span>
-              <span className="font-medium">23</span>
+              <span className="text-sm text-muted-foreground">New Posts (24h)</span>
+              <span className="font-medium">{stats.new_posts || 0}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">
                 Course Swaps
               </span>
-              <span className="font-medium text-accent">15 Active</span>
+              <span className="font-medium text-accent">{stats.active_swaps || 0} Active</span>
             </div>
           </div>
         </div>
